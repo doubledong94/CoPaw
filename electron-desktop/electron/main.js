@@ -12,6 +12,7 @@ app.commandLine.appendSwitch('remote-debugging-port', String(CDP_PORT));
 let pythonProcess = null;
 let mainWindow = null;
 let browserView = null; // AI 控制的浏览器视图
+let settingsWindow = null; // 模型设置窗口
 const BACKEND_PORT = 8088;
 
 /**
@@ -477,6 +478,55 @@ ipcMain.handle('get-browser-view-url', () => {
     return browserView.webContents.getURL();
   }
   return 'about:blank';
+});
+
+// 打开模型设置窗口
+ipcMain.handle('open-model-settings', () => {
+  // 如果设置窗口已经存在，则聚焦它
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return { success: true };
+  }
+
+  // 创建新的设置窗口
+  settingsWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'Model Settings - CoPaw',
+    parent: mainWindow,
+    modal: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false
+    },
+    show: false
+  });
+
+  // 加载模型设置页面
+  const settingsUrl = `http://127.0.0.1:${BACKEND_PORT}/models`;
+  settingsWindow.loadURL(settingsUrl);
+
+  // 窗口加载完成后显示
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+  });
+
+  // 打开开发者工具（开发环境）
+  if (!app.isPackaged) {
+    settingsWindow.webContents.openDevTools();
+  }
+
+  // 窗口关闭时清理引用
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+
+  return { success: true };
 });
 
 console.log('Electron main process initialized.');

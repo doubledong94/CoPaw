@@ -648,7 +648,8 @@
     "chatDisabledTitle": "Chat Disabled",
     "chatDisabledMessage": "Chat functionality is disabled because no model is configured. Please configure a model to enable chat.",
     "configureNow": "Configure Model",
-    "modelNotConfigured": "Please configure a model in Settings before using chat"
+    "modelNotConfigured": "Please configure a model in Settings before using chat",
+    "openSettings": "Open Model Settings"
   },
   "header": {
     "changelog": "Changelog",

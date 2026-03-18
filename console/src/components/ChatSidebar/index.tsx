@@ -214,6 +214,20 @@ export default function ChatSidebar({ chatId }: ChatSidebarProps) {
     [],
   );
 
+  const handleOpenModelSettings = useCallback(() => {
+    // 检测是否在Electron环境
+    const isElectron =
+      typeof window !== "undefined" && (window as any).electron !== undefined;
+
+    if (isElectron) {
+      // Electron环境：调用IPC打开新窗口
+      (window as any).electron.openModelSettings();
+    } else {
+      // Web环境：使用路由导航
+      navigate("/models");
+    }
+  }, [navigate]);
+
   const options = useMemo(() => {
     const i18nConfig = getDefaultConfig(t);
 
@@ -226,7 +240,17 @@ export default function ChatSidebar({ chatId }: ChatSidebarProps) {
       ...i18nConfig,
       theme: {
         ...defaultConfig.theme,
-        rightHeader: <ModelSelector />,
+        rightHeader: (
+          <>
+            <ModelSelector />
+            <Button
+              icon={<SettingOutlined />}
+              onClick={handleOpenModelSettings}
+              style={{ marginLeft: 8 }}
+              title={t("modelConfig.openSettings")}
+            />
+          </>
+        ),
       },
       sender: {
         ...(i18nConfig as any)?.sender,
@@ -244,7 +268,7 @@ export default function ChatSidebar({ chatId }: ChatSidebarProps) {
         "weather search mock": Weather,
       },
     } as unknown as IAgentScopeRuntimeWebUIOptions;
-  }, [wrappedSessionApi, customFetch, t]);
+  }, [wrappedSessionApi, customFetch, t, handleOpenModelSettings]);
 
   return (
     <div className="chat-sidebar-wrapper">

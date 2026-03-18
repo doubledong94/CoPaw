@@ -29,6 +29,11 @@ contextBridge.exposeInMainWorld('electron', {
   getBrowserList: () => ipcRenderer.invoke('get-browser-list'),
 
   /**
+   * 打开模型设置页面
+   */
+  openModelSettings: () => ipcRenderer.invoke('open-model-settings'),
+
+  /**
    * 平台信息
    */
   platform: process.platform,
@@ -44,6 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCdpUrl: () => ipcRenderer.invoke('get-cdp-url'),
   createBrowser: (options) => ipcRenderer.invoke('create-browser', options),
   getBrowserList: () => ipcRenderer.invoke('get-browser-list'),
+  openModelSettings: () => ipcRenderer.invoke('open-model-settings'),
   platform: process.platform,
   isPackaged: process.env.NODE_ENV === 'production'
 });
