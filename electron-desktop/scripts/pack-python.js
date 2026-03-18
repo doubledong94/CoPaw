@@ -89,7 +89,7 @@ async function packWindowsPython() {
   console.log('🪟 Packing Python for Windows...\n');
 
   // 1. 下载 Python Embedded
-  const pythonUrl = `https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`;
+  const pythonUrl = `http://mirrors.huaweicloud.com/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`;
   const zipPath = path.join(ELECTRON_DIR, 'python-embed.zip');
 
   try {
@@ -128,7 +128,8 @@ import site
 
     // 3. 安装 pip
     console.log('📦 Installing pip...');
-    const getPipUrl = 'https://bootstrap.pypa.io/get-pip.py';
+    // 使用清华大学镜像站的 get-pip.py
+    const getPipUrl = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/get-pip.py';
     const getPipPath = path.join(EMBED_DIR, 'get-pip.py');
 
     await downloadFile(getPipUrl, getPipPath);
@@ -144,7 +145,7 @@ import site
 
     // 4. 升级 pip
     console.log('⬆️  Upgrading pip...');
-    execSync(`"${pythonExe}" -m pip install --upgrade pip`, {
+    execSync(`"${pythonExe}" -m pip install --upgrade pip -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`, {
       cwd: EMBED_DIR,
       stdio: 'inherit'
     });
@@ -160,7 +161,7 @@ import site
     console.log('   Installing from CoPaw package...');
 
     // 安装 CoPaw（会自动安装依赖）
-    execSync(`"${pythonExe}" -m pip install "${rootDir}" --target "${path.join(EMBED_DIR, 'Lib', 'site-packages')}"`, {
+    execSync(`"${pythonExe}" -m pip install "${rootDir}" --target "${path.join(EMBED_DIR, 'Lib', 'site-packages')}" -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`, {
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -253,7 +254,7 @@ async function packMacOSPython() {
 
     // 升级 pip
     console.log('\n⬆️  Upgrading pip...');
-    execSync(`"${pipBin}" install --upgrade pip`, {
+    execSync(`"${pipBin}" install --upgrade pip -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`, {
       stdio: 'inherit'
     });
     console.log('✅ pip upgraded\n');
@@ -262,7 +263,7 @@ async function packMacOSPython() {
     console.log('📦 Installing CoPaw dependencies...');
     const rootDir = path.join(ELECTRON_DIR, '..');
 
-    execSync(`"${pipBin}" install "${rootDir}"`, {
+    execSync(`"${pipBin}" install "${rootDir}" -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`, {
       stdio: 'inherit',
       env: {
         ...process.env,
