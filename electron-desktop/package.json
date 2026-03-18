@@ -1,0 +1,85 @@
+{
+  "name": "copaw-desktop",
+  "version": "1.0.0",
+  "description": "CoPaw Desktop - AI Assistant with Embedded Browser Control",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "pack:python": "node scripts/pack-python.js",
+    "prepare": "node scripts/prepare.js",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "keywords": ["ai", "assistant", "browser-automation", "copaw"],
+  "author": "AgentScope Team",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "fs-extra": "^11.1.1",
+    "unzipper": "^0.10.14"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "build": {
+    "appId": "com.agentscope.copaw",
+    "productName": "CoPaw",
+    "copyright": "Copyright © 2026 AgentScope Team",
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "console/dist/**/*",
+      "python/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "python-embed",
+        "to": "python-embed",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CoPaw",
+      "perMachine": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "python/**/*"
+    ]
+  }
+}

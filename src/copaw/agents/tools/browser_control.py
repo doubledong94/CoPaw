@@ -843,6 +843,59 @@ async def _action_start(
     _state["headless"] = not headed
 
     try:
+        # ========== ELECTRON MODE: Connect to Electron CDP ==========
+        # Check if running in Electron mode (set by electron/main.js)
+        electron_mode = os.environ.get("COPAW_ELECTRON_MODE", "").strip() == "1"
+        cdp_url = os.environ.get("COPAW_CDP_URL", "http://localhost:9222").strip()
+
+        if electron_mode:
+            logger.info("🔗 Electron mode detected, connecting to CDP: %s", cdp_url)
+            async_playwright = _ensure_playwright_async()
+            pw = await async_playwright().start()
+
+            try:
+                # Connect to Electron's CDP endpoint instead of launching new browser
+                pw_browser = await pw.chromium.connect_over_cdp(cdp_url)
+                logger.info("✅ Successfully connected to Electron browser via CDP")
+
+                # Get existing context or create new one
+                contexts = pw_browser.contexts
+                if contexts:
+                    context = contexts[0]
+                    logger.info("📋 Using existing browser context with %d pages", len(context.pages))
+                else:
+                    context = await pw_browser.new_context()
+                    logger.info("📋 Created new browser context")
+
+                _attach_context_listeners(context)
+                _state["playwright"] = pw
+                _state["browser"] = pw_browser
+                _state["context"] = context
+                _touch_activity()
+                _start_idle_watchdog()
+
+                msg = "Browser started (Electron mode - connected to embedded browser)"
+                return _tool_response(
+                    json.dumps(
+                        {"ok": True, "message": msg, "electron_mode": True},
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                )
+            except Exception as e:
+                error_msg = f"Failed to connect to Electron CDP at {cdp_url}: {e!s}"
+                logger.error("❌ %s", error_msg)
+                logger.info("💡 Make sure Electron is running with --remote-debugging-port=9222")
+                return _tool_response(
+                    json.dumps(
+                        {"ok": False, "error": error_msg},
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                )
+        # ========== END ELECTRON MODE ==========
+
+        # Original logic: Launch standalone browser
         if _USE_SYNC_PLAYWRIGHT:
             loop = asyncio.get_event_loop()
             pw, browser, context = await loop.run_in_executor(
@@ -991,34 +1044,90 @@ async def _action_open(url: str, page_id: str) -> ToolResponse:
             ),
         )
     try:
-        if _USE_SYNC_PLAYWRIGHT:
-            # Hybrid mode: create page in thread pool
-            loop = asyncio.get_event_loop()
-            # pylint: disable=unnecessary-lambda
-            page = await loop.run_in_executor(
-                _get_executor(),
-                lambda: _state["_sync_context"].new_page(),
-            )
-        else:
-            # Standard async mode
-            page = await _state["context"].new_page()
+        # ========== ELECTRON MODE: Use existing pages ==========
+        electron_mode = os.environ.get("COPAW_ELECTRON_MODE", "").strip() == "1"
+        logger.info(f"🔍 _action_open: electron_mode={electron_mode}, page_id={page_id}, url={url}")
 
+        if electron_mode:
+            # In Electron CDP mode, find the BrowserView page (not the main window)
+            # BrowserView pages typically load 'about:blank' initially
+            context = _state["context"]
+            existing_pages = context.pages
+
+            # Check if we already have a page with this page_id
+            if page_id in _state["pages"]:
+                page = _state["pages"][page_id]
+                logger.info(f"Reusing existing page: {page_id}")
+            else:
+                # Find the BrowserView page:
+                # - Skip the main window (which loads from localhost:8088)
+                # - Use the page that's about:blank or doesn't match the frontend URL
+                browser_view_page = None
+                for p in existing_pages:
+                    page_url = p.url
+                    # Skip the main window (frontend)
+                    if 'localhost:8088' not in page_url and '127.0.0.1:8088' not in page_url:
+                        browser_view_page = p
+                        logger.info(f"Found BrowserView page: {page_url}")
+                        break
+
+                if browser_view_page:
+                    page = browser_view_page
+                    logger.info(f"Using BrowserView page for {page_id}")
+                elif existing_pages:
+                    # Fallback: use last page (most likely the BrowserView)
+                    page = existing_pages[-1]
+                    logger.info(f"Using last page as BrowserView for {page_id}")
+                else:
+                    # No pages available
+                    return _tool_response(
+                        json.dumps(
+                            {
+                                "ok": False,
+                                "error": "No browser pages available in Electron mode. "
+                                       "Please ensure Electron creates a BrowserView."
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                    )
+
+            # Navigate to URL
+            await page.goto(url, wait_until="domcontentloaded")
+            logger.info(f"✅ Navigated BrowserView to: {url}")
+
+        # ========== END ELECTRON MODE ==========
+        else:
+            # Standard mode: create new page
+            if _USE_SYNC_PLAYWRIGHT:
+                # Hybrid mode: create page in thread pool
+                loop = asyncio.get_event_loop()
+                # pylint: disable=unnecessary-lambda
+                page = await loop.run_in_executor(
+                    _get_executor(),
+                    lambda: _state["_sync_context"].new_page(),
+                )
+            else:
+                # Standard async mode
+                page = await _state["context"].new_page()
+
+            # Navigate
+            if _USE_SYNC_PLAYWRIGHT:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    _get_executor(),
+                    lambda: page.goto(url),
+                )
+            else:
+                await page.goto(url)
+
+        # Common setup for both modes
         _state["refs"][page_id] = {}
         _state["console_logs"][page_id] = []
         _state["network_requests"][page_id] = []
         _state["pending_dialogs"][page_id] = []
         _state["pending_file_choosers"][page_id] = []
         _attach_page_listeners(page, page_id)
-
-        if _USE_SYNC_PLAYWRIGHT:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                _get_executor(),
-                lambda: page.goto(url),
-            )
-        else:
-            await page.goto(url)
-
         _state["pages"][page_id] = page
         _state["current_page_id"] = page_id
         return _tool_response(
