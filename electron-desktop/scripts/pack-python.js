@@ -89,7 +89,7 @@ async function packWindowsPython() {
   console.log('🪟 Packing Python for Windows...\n');
 
   // 1. 下载 Python Embedded
-  const pythonUrl = `http://mirrors.huaweicloud.com/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`;
+  const pythonUrl = `https://mirrors.huaweicloud.com/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`;
   const zipPath = path.join(ELECTRON_DIR, 'python-embed.zip');
 
   try {
