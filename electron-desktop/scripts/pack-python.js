@@ -128,19 +128,28 @@ import site
 
     // 3. 安装 pip
     console.log('📦 Installing pip...');
-    // 使用清华大学镜像站的 get-pip.py
-    const getPipUrl = 'https://mirrors.tuna.tsinghua.edu.cn/pypi/get-pip.py';
-    const getPipPath = path.join(EMBED_DIR, 'get-pip.py');
-
-    await downloadFile(getPipUrl, getPipPath);
-
     const pythonExe = path.join(EMBED_DIR, 'python.exe');
-    execSync(`"${pythonExe}" "${getPipPath}"`, {
-      cwd: EMBED_DIR,
-      stdio: 'inherit'
-    });
+    const getPipCandidates = [
+      process.env.COPAW_GET_PIP_PATH,
+      path.join(ELECTRON_DIR, 'get-pip.py'),
+    ].filter(Boolean);
 
-    fs.unlinkSync(getPipPath);
+    const resolvedGetPipPath = getPipCandidates.find((candidatePath) => fs.existsSync(candidatePath));
+
+    if (resolvedGetPipPath) {
+      console.log(`   Using local get-pip.py: ${resolvedGetPipPath}`);
+      execSync(`"${pythonExe}" "${resolvedGetPipPath}"`, {
+        cwd: EMBED_DIR,
+        stdio: 'inherit'
+      });
+    } else {
+      console.log('   No local get-pip.py found, falling back to ensurepip...');
+      execSync(`"${pythonExe}" -m ensurepip --upgrade`, {
+        cwd: EMBED_DIR,
+        stdio: 'inherit'
+      });
+    }
+
     console.log('✅ pip installed\n');
 
     // 4. 升级 pip
@@ -161,6 +170,7 @@ import site
     console.log('   Installing from CoPaw package...');
 
     // 安装 CoPaw（会自动安装依赖）
+    fs.ensureDirSync(path.join(EMBED_DIR, 'Lib', 'site-packages'));
     execSync(`"${pythonExe}" -m pip install "${rootDir}" --target "${path.join(EMBED_DIR, 'Lib', 'site-packages')}" -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`, {
       stdio: 'inherit',
       env: {
